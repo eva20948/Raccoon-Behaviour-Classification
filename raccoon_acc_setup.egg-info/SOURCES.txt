@@ -1,8 +1,0 @@
-README.md
-setup.py
-raccoon_acc_setup.egg-info/PKG-INFO
-raccoon_acc_setup.egg-info/SOURCES.txt
-raccoon_acc_setup.egg-info/dependency_links.txt
-raccoon_acc_setup.egg-info/requires.txt
-raccoon_acc_setup.egg-info/top_level.txt
-test/test_functions.py
