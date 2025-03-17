@@ -1,0 +1,8 @@
+Metadata-Version: 2.1
+Name: raccoon_acc_setup
+Version: 0.1.0
+Summary: Library for the usage of acceleration data
+Author: Me
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: matplotlib
