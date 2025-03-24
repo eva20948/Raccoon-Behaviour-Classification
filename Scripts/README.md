@@ -26,10 +26,11 @@ The repository is structured according to the different tasks/sections of the ma
   + *model_for_wild_data.py*: uses the obtained models on unlabelled data, gives out hourly contingents and result files with prediction probabilities per behaviour per burst
   + *results_wild_data_summary.py*: file used for several analysis of the behaviour predictions
  
-  * the subfolder **raccoon_acc_setup** contains the library developped in the course of this project. Subfiles are:
-    + *gui_functions.py*: containing all functions related to graphical user interfaces
-    + *importing_raw_data.py*: functions for importing raw data in different formats as well as behaviour observation files
-    + *machine_learning_functions.py*: functions for data set preparation as well as result visualization
-    + *plot_functions.py*: different plotting functions
-    + *predictor_calculation.py*: calculating the different features and format standardization
-    + *variables_simplefunctions.py*: definition of important variables, small general functions
+
+* the subfolder **raccoon_acc_setup** contains the library developped in the course of this project. Subfiles are:
+  + *gui_functions.py*: containing all functions related to graphical user interfaces
+  + *importing_raw_data.py*: functions for importing raw data in different formats as well as behaviour observation files
+  + *machine_learning_functions.py*: functions for data set preparation as well as result visualization
+  + *plot_functions.py*: different plotting functions
+  + *predictor_calculation.py*: calculating the different features and format standardization
+  + *variables_simplefunctions.py*: definition of important variables, small general functions
