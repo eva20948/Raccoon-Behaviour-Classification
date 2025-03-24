@@ -1,23 +1,28 @@
 """
-Filename: violinplots.py
+Filename: matching_behaviour_to_acc_data_violinplots.py
 Author: Eva Reinhardt
 Date: 2024-12-09
 Version: 1.0
 Description: This file is used to plot violinplots of different predictors of different individuals
-in order to find out, which acc file belongs to which behavior file.
+in order to find out, which acc file belongs to which behaviour file.
 """
-from raccoon_acc_setup import variables_simplefunctions as sim_func
-from raccoon_acc_setup import importing_raw_data as im_raw
+
+import os
+
 import pandas as pd
+import numpy as np
+
+from tkinter import filedialog
+
 import matplotlib.pyplot as plt
 import seaborn as sns
-import os
-from tkinter import filedialog
-import numpy as np
+
+from raccoon_acc_setup import importing_raw_data as im_raw
+from raccoon_acc_setup import gui_functions as guif
 
 
 if __name__ == '__main__':
-    filepaths = sim_func.open_file_dialog("Select a file or files - predictors")
+    filepaths = guif.open_file_dialog("Select a file or files - predictors")
 
     if 'Inge' in filepaths[0]:
         # loading behavior data and renaming columns for consistency

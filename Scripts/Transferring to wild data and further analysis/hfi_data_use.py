@@ -33,24 +33,24 @@ POLY_FILE = POLY_PATH+"\hull_polygons.geojson"
 
 
 def transform_from_latlon(lat, lon) -> Affine:
-    '''
+    """
     create affine transform from lat/lon to array-indices
-    :param lat: first elements (at least 2) of latitude-dimension
-    :param lon: first elements (at least 2) of longitude-dimension
-    :return: affine-transform lat/lon -> indices
-    '''
+    @param lat: first elements (at least 2) of latitude-dimension
+    @param lon: first elements (at least 2) of longitude-dimension
+    @return: affine-transform lat/lon -> indices
+    """
     trans = Affine.translation(lon[0], lat[0])
     scale = Affine.scale(lon[1] - lon[0], lat[1] - lat[0])
     return trans * scale
 
 def mask_data( shape, data:np.ndarray, transform:Affine) -> np.ma.MaskedArray:
-    '''
+    """
     mask a Numpy-Array with shape
-    :param shape:   single shape or list of shapes
-    :param data:    Numpy-Array to mask
-    :param transform:   transform for shape coordinates in lat(lon to array indices
-    :return:    MaskedArray
-    '''
+    @param shape:   single shape or list of shapes
+    @param data:    Numpy-Array to mask
+    @param transform:   transform for shape coordinates in lat(lon to array indices
+    @return:    MaskedArray
+    """
     if not isinstance(shape, Iterable):
         shape = [shape]     # make shape iterable
     mask = features.geometry_mask(geometries=shape,

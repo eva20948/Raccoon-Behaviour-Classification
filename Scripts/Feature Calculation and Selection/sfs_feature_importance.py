@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-Filename: feature_selection.py
+Filename: sfs_feature_importance.py
 Author: Eva Reinhardt
 Date: 2024-12-09
 Version: 1.0
@@ -11,17 +11,15 @@ for forward feature selection.
 
 """
 
-from raccoon_acc_setup import predictor_calculation as pred_cal
-from raccoon_acc_setup import machine_learning_functions as mlf
-from raccoon_acc_setup import importing_raw_data as im_raw
-from raccoon_acc_setup import gui_functions as guif
-from raccoon_acc_setup import variables_simplefunctions as sim_func
-import matplotlib.pyplot as plt
-from tkinter import filedialog
+from time import time
 
 import pandas as pd
 import numpy as np
 
+from tkinter import filedialog
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedShuffleSplit
@@ -29,38 +27,42 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 
 import xgboost as xgb
-from matplotlib.backends.backend_pdf import PdfPages
 
-from time import time
+from raccoon_acc_setup import predictor_calculation as pred_cal
+from raccoon_acc_setup import machine_learning_functions as mlf
+from raccoon_acc_setup import importing_raw_data as im_raw
+from raccoon_acc_setup import gui_functions as guif
+from raccoon_acc_setup import variables_simplefunctions as sim_func
+
+
+filepaths_peter = [
+    sim_func.IMPORT_PARAMETERS['Peter']['filepath_pred']]
+filepaths_domi = [
+    sim_func.IMPORT_PARAMETERS['Dominique']['filepath_pred']]
+ml_algs_set_param = {
+    'RandomForest_low': RandomForestClassifier(bootstrap= True, class_weight= 'balanced_subsample', max_depth= 4,
+                                               max_features= 'sqrt', min_samples_leaf= 3, min_samples_split= 5,
+                                               n_estimators= 30),
+    # 'RandomForest': RandomForestClassifier(class_weight='balanced_subsample', random_state=42, bootstrap=True,
+    #                                         max_depth=20, max_features='sqrt', min_samples_leaf=1,
+    #                                         min_samples_split=2, n_estimators=200),
+    # 'SupportVectorMachine_linearkernel': svm.SVC(probability=True, kernel="linear", C=80, gamma='scale'), # rausnehmen, weil es ewig dauert?
+    # 'SupportVectorMachine_rbfkernel': svm.SVC(probability=True, kernel='rbf', C=30, gamma = 'scale'),
+    'XGBoost_low': xgb.XGBClassifier(colsample_bytree= 0.8, gamma= 1,
+                                  learning_rate= 0.2, max_depth= 4,
+                                  n_estimators= 20, subsample= 0.8, min_child_weight=10)
+}
+
+filepaths = [filepaths_peter, filepaths_domi]
+
 
 if __name__ == "__main__":
-    filepaths_peter = [
-        sim_func.IMPORT_PARAMETERS['Peter']['filepath_pred']]
-    filepaths_domi = [
-        sim_func.IMPORT_PARAMETERS['Dominique']['filepath_pred']]
-    ml_algs_set_param = {
-        'RandomForest_low': RandomForestClassifier(bootstrap= True, class_weight= 'balanced_subsample', max_depth= 4,
-                                                   max_features= 'sqrt', min_samples_leaf= 3, min_samples_split= 5,
-                                                   n_estimators= 30),
-        # 'RandomForest': RandomForestClassifier(class_weight='balanced_subsample', random_state=42, bootstrap=True,
-        #                                         max_depth=20, max_features='sqrt', min_samples_leaf=1,
-        #                                         min_samples_split=2, n_estimators=200),
-        # 'SupportVectorMachine_linearkernel': svm.SVC(probability=True, kernel="linear", C=80, gamma='scale'), # rausnehmen, weil es ewig dauert?
-        # 'SupportVectorMachine_rbfkernel': svm.SVC(probability=True, kernel='rbf', C=30, gamma = 'scale'),
-        'XGBoost_low': xgb.XGBClassifier(colsample_bytree= 0.8, gamma= 1,
-                                      learning_rate= 0.2, max_depth= 4,
-                                      n_estimators= 20, subsample= 0.8, min_child_weight=10)
-    }
-
-    filepaths = [filepaths_peter, filepaths_domi]
 
     pred = pred_cal.create_pred_complete(filepaths)
 
     pred = im_raw.convert_beh(pred, 'generalization', 'generalization3')
     pred = im_raw.convert_beh(pred, 'translation')
     variations = [['resting', 'walking', 'climbing', 'exploring', 'high energy'], ['exploring', 'resting', 'climbing'], ['exploring', 'walking', 'climbing']]
-
-
 
     option_method = guif.choose_multiple_options(['feature importance', 'SFS'], 'Which feature selection methods should be used?')
     output_pdf_path = filedialog.asksaveasfilename(title="Save as")

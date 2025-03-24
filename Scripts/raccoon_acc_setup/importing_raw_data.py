@@ -221,6 +221,49 @@ def import_beh_domi(filepath: str) -> pd.DataFrame:
     return beh
 
 
+def import_beh_inge(filepath: str, select: str) -> pd.DataFrame:
+    """
+    Import behavior from Inge's data from specified filepath.
+
+    @param filepath: Path to the file to import.
+    @param select: Selected option ('Emma', 'Susi', 'Both').
+    @return: DataFrame containing the behavior data.
+                (columns: 'datetime', 'Verhalten Emma', 'Verhalten Susi')
+    """
+
+    # import file
+    beh = pd.read_csv(filepath, low_memory=False)
+
+    # create time column
+    beh[['Stunden', 'Minuten', 'Sekunden']] = beh[['Stunden', 'Minuten', 'Sekunden']].map('{:0>2}'.format)
+    beh['time'] = beh[['Stunden', 'Minuten', 'Sekunden']].apply(lambda row:':'.join(map(str, row)), axis=1)
+    beh = beh.drop(['Stunden', 'Minuten', 'Sekunden'], axis=1)
+
+    # drop rows with no documented behavior for both individuals
+    beh = beh.dropna(subset=['Verhalten Emma', 'Verhalten Susi'], how='all')
+
+    # filter the data according to the selected option
+    if select == "Emma":
+        beh = beh.filter(regex='Datum|time|Emma')
+    elif select == 'Susi':
+        beh = beh.filter(regex='Datum|time|Susi')
+    else:
+        beh = beh.filter(regex='Datum|time|Emma|Susi')
+
+    # renaming date column
+    beh = beh.rename(columns={'Datum':'date'})
+
+    # print(beh.head())
+
+    # creating datetime column, sort columns drop rows with no documented behavior
+    # for both individuals
+    beh = sim_func.combine_date_time(beh)
+    cols = ['datetime']  + [col for col in beh if col != 'datetime']
+    beh = beh[cols]
+
+    return beh
+
+
 def merge_domi(acc: pd.DataFrame, beh: pd.DataFrame, max_time_diff: float = 15.0):
     """
     Merging acceleration and behavior data from Dominique's data sets.

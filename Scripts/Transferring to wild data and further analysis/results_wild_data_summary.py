@@ -21,28 +21,45 @@ distances_between_individuals(): adds distance matrix between individuals (optio
 diagram)
 """
 
-import matplotlib.pyplot as plt
-import networkx as nx
-from collections import Counter
-import numpy as np
-import pandas as pd
-import matplotlib.colors as mcolors
-
-from collections import defaultdict
-import pickle
-from matplotlib import gridspec
-from matplotlib.backends.backend_pdf import PdfPages
-from raccoon_acc_setup import plot_functions as plt_func
-from raccoon_acc_setup import variables_simplefunctions as sim_func
 import os
 import re
-from scipy.spatial import distance_matrix
+import datetime
+
+import pandas as pd
+import numpy as np
+
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib import gridspec
+from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
+
+from scipy.spatial import distance_matrix
+import scipy.cluster.hierarchy as sch
+
+import pickle
 import json
+
 from astral import LocationInfo
 import astral
-import datetime
-import scipy.cluster.hierarchy as sch
+
+import networkx as nx
+from collections import Counter
+from collections import defaultdict
+
+from raccoon_acc_setup import plot_functions as plt_func
+from raccoon_acc_setup import variables_simplefunctions as sim_func
+
+filepaths_class = [sim_func.IMPORT_PATH_CLASS + f for f in os.listdir(sim_func.IMPORT_PATH_CLASS) if
+                   os.path.isfile(os.path.join(sim_func.IMPORT_PATH_CLASS, f)) and '.csv' in f]
+filepaths_caros = [f for f in filepaths_class if 'Caro S' in f]
+filepaths_carow = [f for f in filepaths_class if 'Caro W' in f]
+filepaths_katti = [f for f in filepaths_class if 'Katti' in f]
+
+filepaths_all = {'Caro W': filepaths_carow,
+                 'Caro S': filepaths_caros,
+                 'Katti': filepaths_katti
+                 }
 
 def network_creation(label_sequence: list, title: str):
     """
@@ -137,7 +154,7 @@ def network_creation(label_sequence: list, title: str):
 
 def add_diagram(position: tuple, dictionary: dict, title: str, times_min_max: dict = None):
     """
-    funtion to add diagrams of overall proportions as well as a table with the proportions and a table with earliest
+    function to add diagrams of overall proportions as well as a table with the proportions and a table with earliest
     and latest timestamp/datetime
     @param position: position in the overall figure
     @param dictionary: overall proportions in dict format
@@ -205,7 +222,6 @@ def add_diagram(position: tuple, dictionary: dict, title: str, times_min_max: di
             cell.set_width(0.8)
 
 
-
 def histograms(df: pd.DataFrame, title: str):
     """
     function to plot a histogram of prediction probabilities
@@ -244,182 +260,85 @@ def distances_between_individuals(stats: dict, option: str, hfi_data: pd.DataFra
     @param stats: dictionary containing the statistics of the individuals (class proportions)
     @param option: 'all_datasets' --> requires a dict of proportions from all datasets, overall distance matrix,
         anything else --> distance matrix of class proportions form individuals of the same dataset
-    @return: distance matrix
+    @return: distance matrix and dendrogram
     """
     if option == 'all_datasets':
         nr_row = 1
-        if not hfi_data.empty:
-            ordering = hfi_data['logger'].to_list()
-            nr_row=2
-            transformed_dict = {}
-            for name, loggers in stats.items():
-                for logger, models in loggers.items():
+        transformed_dict = {}
+        for name, loggers in stats.items():
+            for logger, models in loggers.items():
+                if 'wo_mw_layered' in models:
                     del models['wo_mw_layered']
+                if 'mw_simple' in models:
                     del models['mw_simple']
+                if 'wo_mw_simple' in models:
                     del models['wo_mw_simple']
-                    new_logger_name = f"{logger}_{name}"
-                    transformed_dict[new_logger_name] = models
-            stats = {}
+                new_logger_name = f"{logger}_{name}"
+                transformed_dict[new_logger_name] = models
 
-            try:
-                ordering
-            except NameError:
-                print("Variable does not exist!")
-            else:
-                for logger in ordering:
-                    logger_name = [key for key, item in transformed_dict.items() if str(logger) in key]
-                    if len(logger_name) != 0:
-                        logger_name = logger_name[0]
-                        hfi_data = hfi_data.replace(logger, logger_name)
-                        stats[logger_name] = transformed_dict[logger_name]
-                    else:
-                        hfi_data = hfi_data.loc[hfi_data['logger'] != logger]
+        size = [9, 8]
 
+        new_order_stat = {}
+        for logger, models in transformed_dict.items():
+            for model, values in models.items():
+                if model not in new_order_stat:
+                    new_order_stat[model] = {}
+                values_new = pd.Series(values)
+                values_new = values_new.reindex(sim_func.COLOR_MAPPING.keys(), fill_value=0)
+                new_order_stat[model][logger] = values_new.to_list()
 
-            size = [8, 9]
+        fig, axes = plt.subplots(nrows=nr_row, ncols=2, figsize=size, width_ratios=[8, 1])
 
-            new_order_stat = {}
-            for logger, models in stats.items():
-                for model, values in models.items():
-                    if model not in new_order_stat:
-                        new_order_stat[model] = {}
-                    values_new = pd.Series(values)
-                    values_new = values_new.reindex(sim_func.COLOR_MAPPING.keys(), fill_value=0)
-                    new_order_stat[model][logger] = values_new.to_list()
+        matrices = []
+        heatmaps = []
 
-            fig, axes = plt.subplots(nrows=nr_row, ncols=2, figsize=size, height_ratios=[3,1], width_ratios=[8,1], sharex=True)
+        for i, (model, logger_dict) in enumerate(new_order_stat.items()):
+            proportions = []
+            labels = []
+            for logger, values in logger_dict.items():
+                values_norm = [float(v) / sum(values) if sum(values) > 0 else 0 for v in values]
+                proportions.append(values_norm)
+                labels.append(logger)
 
-            matrices = []
-            heatmaps = []
+        matrix = pd.DataFrame(distance_matrix(proportions, proportions), index=labels, columns=labels)
 
-            for i, (model, logger_dict) in enumerate(new_order_stat.items()):
-                proportions = []
-                labels = []
-                for logger, values in logger_dict.items():
-                    values_norm = [float(v) / sum(values) if sum(values) > 0 else 0 for v in values]
-                    proportions.append(values_norm)
-                    labels.append(logger)
+        heatmap = sns.heatmap(matrix, ax=axes[0], cbar=False, cmap="coolwarm")
 
-                matrix = pd.DataFrame(distance_matrix(proportions, proportions), index=labels, columns=labels)
-
-                heatmap = sns.heatmap(matrix, ax=axes[0,0], cbar=False, vmin=0, vmax=0.5, cmap="coolwarm")
-
-                matrices.append(matrix)
-                heatmaps.append(heatmap)
-
-            cbar = fig.colorbar(heatmaps[0].collections[0], ax=axes[0,1], orientation="vertical", fraction=0.5, pad=0.04)
-            cbar.set_label("Heatmap Intensity")
-            axes[0,1].axis('off')
-
-
-            categories = list(hfi_data['logger'].unique())  # Get unique categories
-            x_positions = np.arange(len(hfi_data['logger']))+0.5  # Assign integer positions
-            category_to_x = {cat: pos for cat, pos in zip(categories, x_positions)}
-
-            hfi_data['x_mapped'] = hfi_data['logger'].map(category_to_x)
-
-            axes[1,0].errorbar(hfi_data['x_mapped'], hfi_data['mean'],
-                             yerr=[hfi_data['mean']-hfi_data['min'], hfi_data['max']-hfi_data['mean']],
-                                 fmt='.', capsize=2, capthick=1, elinewidth=1, color='black', label="Data Points")
-            axes[1,0].set_ylim([hfi_data['min'].min()+0.01, hfi_data['max'].max()])
-            axes[1,0].set_xticks(x_positions)
-            axes[1,0].set_xticklabels(categories, rotation=90, ha='center')
-            axes[1,0].set_ylabel('Mean HFI')
-            axes[-1, -1].axis('off')
-
-            fig.tight_layout()
-            if pdf:
-                pdf.savefig(fig)
-                plt.close(fig)
-            else:
-                plt.show()
-
-
-
-        else:
-            transformed_dict = {}
-            for name, loggers in stats.items():
-                for logger, models in loggers.items():
-                    if 'wo_mw_layered' in models:
-                        del models['wo_mw_layered']
-                    if 'mw_simple' in models:
-                        del models['mw_simple']
-                    if 'wo_mw_simple' in models:
-                        del models['wo_mw_simple']
-                    new_logger_name = f"{logger}_{name}"
-                    transformed_dict[new_logger_name] = models
-
-            size = [9, 8]
-
-            new_order_stat = {}
-            for logger, models in transformed_dict.items():
-                for model, values in models.items():
-                    if model not in new_order_stat:
-                        new_order_stat[model] = {}
-                    values_new = pd.Series(values)
-                    values_new = values_new.reindex(sim_func.COLOR_MAPPING.keys(), fill_value=0)
-                    new_order_stat[model][logger] = values_new.to_list()
-
-            fig, axes = plt.subplots(nrows=nr_row, ncols=2, figsize=size, width_ratios=[8, 1])
-
-            matrices = []
-            heatmaps = []
-
-            for i, (model, logger_dict) in enumerate(new_order_stat.items()):
-                proportions = []
-                labels = []
-                for logger, values in logger_dict.items():
-                    values_norm = [float(v) / sum(values) if sum(values) > 0 else 0 for v in values]
-                    proportions.append(values_norm)
-                    labels.append(logger)
-
-            matrix = pd.DataFrame(distance_matrix(proportions, proportions), index=labels, columns=labels)
-
-            heatmap = sns.heatmap(matrix, ax=axes[0], cbar=False, cmap="coolwarm")
-
-
-
-            cbar = fig.colorbar(heatmap.collections[0], ax=axes[1], orientation="vertical", fraction=0.5,
-                                pad=0.04)
-            cbar.set_label("Heatmap Intensity")
-            axes[-1].axis('off')
-            fig.tight_layout()
-            if pdf:
-                pdf.savefig(fig)
-                plt.close(fig)
-            else:
-                plt.show()
-
-            condensed_matrix = sch.distance.squareform(matrix)
-
-
-            linkage_matrix = sch.linkage(condensed_matrix,
-                                         method='ward')
-
-            fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(10, 8))
-            sch.set_link_color_palette(['cornflowerblue', 'yellowgreen', 'black'])
-            sch.dendrogram(linkage_matrix, labels=matrix.columns, ax=axes, leaf_rotation=0, orientation="left", color_threshold=0.8,
-                           above_threshold_color='black')
-            x_labels = axes.get_ymajorticklabels()
-            for lbl in x_labels:
-                if "Katti" in lbl.get_text():
-                    lbl.set_color('goldenrod')
-                elif "Caro W" in lbl.get_text():
-                    lbl.set_color('seagreen')
-                else:
-                    lbl.set_color('royalblue')
-            plt.xlabel('Distance')
-            plt.ylabel('Individuals')
-            plt.xticks(rotation=90)
-
-            pdf.savefig(fig)
-            plt.close(fig)
-
+        cbar = fig.colorbar(heatmap.collections[0], ax=axes[1], orientation="vertical", fraction=0.5,
+                            pad=0.04)
+        cbar.set_label("Heatmap Intensity")
+        axes[-1].axis('off')
+        fig.tight_layout()
         if pdf:
             pdf.savefig(fig)
             plt.close(fig)
         else:
             plt.show()
+
+        condensed_matrix = sch.distance.squareform(matrix)
+
+        linkage_matrix = sch.linkage(condensed_matrix,
+                                     method='ward')
+
+        fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(10, 8))
+        sch.set_link_color_palette(['cornflowerblue', 'yellowgreen', 'black'])
+        sch.dendrogram(linkage_matrix, labels=matrix.columns, ax=axes, leaf_rotation=0, orientation="left",
+                       color_threshold=0.8,
+                       above_threshold_color='black')
+        x_labels = axes.get_ymajorticklabels()
+        for lbl in x_labels:
+            if "Katti" in lbl.get_text():
+                lbl.set_color('goldenrod')
+            elif "Caro W" in lbl.get_text():
+                lbl.set_color('seagreen')
+            else:
+                lbl.set_color('royalblue')
+        plt.xlabel('Distance')
+        plt.ylabel('Individuals')
+        plt.xticks(rotation=90)
+
+        pdf.savefig(fig)
+        plt.close(fig)
 
     else:
         size = [16, 8]
@@ -470,18 +389,102 @@ def distances_between_individuals(stats: dict, option: str, hfi_data: pd.DataFra
             plt.show()
 
 
+def distances_between_individuals_hfi(stats: dict, hfi_data: pd.DataFrame):
+    """
+    function to plot a distance matrix
+    @param stats: dictionary containing the statistics of the individuals (class proportions)
+    @param hfi_data: dataframe containing the hfi data per data set
+    @return: distance matrix and hfi data plot, only for the layered model with moving window results
+    """
+    nr_row = 1
+    ordering = hfi_data['logger'].to_list()
+    nr_row = 2
+    transformed_dict = {}
+    for name, loggers in stats.items():
+        for logger, models in loggers.items():
+            del models['wo_mw_layered']
+            del models['mw_simple']
+            del models['wo_mw_simple']
+            new_logger_name = f"{logger}_{name}"
+            transformed_dict[new_logger_name] = models
+    stats = {}
+
+    try:
+        ordering
+    except NameError:
+        print("Variable does not exist!")
+    else:
+        for logger in ordering:
+            logger_name = [key for key, item in transformed_dict.items() if str(logger) in key]
+            if len(logger_name) != 0:
+                logger_name = logger_name[0]
+                hfi_data = hfi_data.replace(logger, logger_name)
+                stats[logger_name] = transformed_dict[logger_name]
+            else:
+                hfi_data = hfi_data.loc[hfi_data['logger'] != logger]
+
+    size = [8, 9]
+
+    new_order_stat = {}
+    for logger, models in stats.items():
+        for model, values in models.items():
+            if model not in new_order_stat:
+                new_order_stat[model] = {}
+            values_new = pd.Series(values)
+            values_new = values_new.reindex(sim_func.COLOR_MAPPING.keys(), fill_value=0)
+            new_order_stat[model][logger] = values_new.to_list()
+
+    fig, axes = plt.subplots(nrows=nr_row, ncols=2, figsize=size, height_ratios=[3, 1], width_ratios=[8, 1],
+                             sharex=True)
+
+    matrices = []
+    heatmaps = []
+
+    for i, (model, logger_dict) in enumerate(new_order_stat.items()):
+        proportions = []
+        labels = []
+        for logger, values in logger_dict.items():
+            values_norm = [float(v) / sum(values) if sum(values) > 0 else 0 for v in values]
+            proportions.append(values_norm)
+            labels.append(logger)
+
+        matrix = pd.DataFrame(distance_matrix(proportions, proportions), index=labels, columns=labels)
+
+        heatmap = sns.heatmap(matrix, ax=axes[0, 0], cbar=False, vmin=0, vmax=0.5, cmap="coolwarm")
+
+        matrices.append(matrix)
+        heatmaps.append(heatmap)
+
+    cbar = fig.colorbar(heatmaps[0].collections[0], ax=axes[0, 1], orientation="vertical", fraction=0.5,
+                        pad=0.04)
+    cbar.set_label("Heatmap Intensity")
+    axes[0, 1].axis('off')
+
+    categories = list(hfi_data['logger'].unique())  # Get unique categories
+    x_positions = np.arange(len(hfi_data['logger'])) + 0.5  # Assign integer positions
+    category_to_x = {cat: pos for cat, pos in zip(categories, x_positions)}
+
+    hfi_data['x_mapped'] = hfi_data['logger'].map(category_to_x)
+
+    axes[1, 0].errorbar(hfi_data['x_mapped'], hfi_data['mean'],
+                        yerr=[hfi_data['mean'] - hfi_data['min'], hfi_data['max'] - hfi_data['mean']],
+                        fmt='.', capsize=2, capthick=1, elinewidth=1, color='black', label="Data Points")
+    axes[1, 0].set_ylim([hfi_data['min'].min() + 0.01, hfi_data['max'].max()])
+    axes[1, 0].set_xticks(x_positions)
+    axes[1, 0].set_xticklabels(categories, rotation=90, ha='center')
+    axes[1, 0].set_ylabel('Mean HFI')
+    axes[-1, -1].axis('off')
+
+    fig.tight_layout()
+    if pdf:
+        pdf.savefig(fig)
+        plt.close(fig)
+    else:
+        plt.show()
+
+
+
 if __name__ == "__main__":
-    filepaths_class = [sim_func.IMPORT_PATH_CLASS + f for f in os.listdir(sim_func.IMPORT_PATH_CLASS) if
-                       os.path.isfile(os.path.join(sim_func.IMPORT_PATH_CLASS, f)) and '.csv' in f]
-    filepaths_caros = [f for f in filepaths_class if 'Caro S' in f]
-    filepaths_carow = [f for f in filepaths_class if 'Caro W' in f]
-    filepaths_katti = [f for f in filepaths_class if 'Katti' in f]
-
-    filepaths_all = {'Caro W': filepaths_carow,
-                     'Caro S': filepaths_caros,
-                     'Katti': filepaths_katti
-                     }
-
     option = 'distance matrix'
     if option == 'everything':
         stats_all = {}
@@ -582,7 +585,6 @@ if __name__ == "__main__":
 
                     stats_all[name] = stats
 
-
                     print(4)
 
                     stats_overall = defaultdict(lambda: defaultdict(int))
@@ -625,7 +627,6 @@ if __name__ == "__main__":
 
                     distances_between_individuals(stats, 'single_dataset')
 
-
         with (PdfPages(sim_func.EXPORT_PATH + 'Zusammenfassung_all.pdf') as pdf):
             distances_between_individuals(stats_all, 'all_datasets')
 
@@ -649,10 +650,8 @@ if __name__ == "__main__":
         hfi_data["logger"] = [row[0] for row in data]
         hfi_data = hfi_data.sort_values(['mean'])
 
-
-
         with (PdfPages(sim_func.EXPORT_PATH + 'Zusammenfassung_hfi.pdf') as pdf):
-            distances_between_individuals(stats_all, 'all_datasets', hfi_data)
+            distances_between_individuals_hfi(stats_all, hfi_data)
 
         with (PdfPages(sim_func.EXPORT_PATH + 'Zusammenfassung_normal_dist_mat.pdf') as pdf):
             distances_between_individuals(stats_all, 'all_datasets')
@@ -825,8 +824,9 @@ if __name__ == "__main__":
 
     elif option == "year overview":
         with (PdfPages('year_overview_behaviour_proportions.pdf') as pdf):
-            months_overall = pd.DataFrame(np.zeros((12, 7)), columns=['resting', 'climbing', 'walking', 'exploring', 'intermediate energy',
-                                                    'high energy', 'unknown'], index = range(1, 13))
+            months_overall = pd.DataFrame(np.zeros((12, 7)),
+                                          columns=['resting', 'climbing', 'walking', 'exploring', 'intermediate energy',
+                                                   'high energy', 'unknown'], index=range(1, 13))
 
             location = LocationInfo("Berlin", "Germany", "GMT+1", latitude=52.52,
                                     longitude=13.41)
@@ -841,16 +841,16 @@ if __name__ == "__main__":
                 nightstart = s["sunset"]
                 nightend = astral.sun.sun(location.observer, date=date + datetime.timedelta(days=1))["sunrise"]
 
-                night_length = (nightend-nightstart).total_seconds() / 3600 /24
+                night_length = (nightend - nightstart).total_seconds() / 3600 / 24
                 average_night_lengths.append(night_length)
 
             average_night_lengths = np.array(average_night_lengths)
 
-
             for name, filepaths in filepaths_all.items():
 
-                months_name = pd.DataFrame(np.zeros((12, 7)), columns=['resting', 'climbing', 'walking', 'exploring', 'intermediate energy',
-                                                    'high energy', 'unknown'], index = range(1, 13))
+                months_name = pd.DataFrame(np.zeros((12, 7)), columns=['resting', 'climbing', 'walking', 'exploring',
+                                                                       'intermediate energy',
+                                                                       'high energy', 'unknown'], index=range(1, 13))
                 for filepath in filepaths:
                     if 'predictions_mw_layered' in filepath:
                         data = pd.read_csv(filepath, sep=',', low_memory=False)
@@ -860,17 +860,18 @@ if __name__ == "__main__":
                         for month, data_month in months:
                             behavior_counts = data_month['pred_incl_unkn'].value_counts().to_dict()
                             for beh in months_name.columns:
-                                months_name.loc[month,beh] += behavior_counts.get(beh, 0)
+                                months_name.loc[month, beh] += behavior_counts.get(beh, 0)
 
                 months_prop = months_name.div(months_name.sum(axis=1), axis=0)
 
                 fig = plt.figure(figsize=(5, 5))
                 for column in months_prop.columns:
                     plt.plot(months_prop.index, months_prop[column], marker='o',
-                             label=column, color=sim_func.COLOR_MAPPING_HTML.get(column, 'black'))  # Default to black if key is missing
+                             label=column, color=sim_func.COLOR_MAPPING_HTML.get(column,
+                                                                                 'black'))  # Default to black if key is missing
                 plt.plot(months_prop.index, average_night_lengths, label='night hours', color='black')
                 plt.xlabel("Month")
-                plt.ylim((0,0.7))
+                plt.ylim((0, 0.7))
                 plt.ylabel("Proportion")
                 plt.title(name)
 
@@ -887,7 +888,7 @@ if __name__ == "__main__":
                 plt.plot(months_prop.index, months_prop[column], marker='o',
                          label=column,
                          color=sim_func.COLOR_MAPPING_HTML.get(column, 'black'))  # Default to black if key is missing
-            plt.plot(months_prop.index, average_night_lengths, label='night hours', color = 'black')
+            plt.plot(months_prop.index, average_night_lengths, label='night hours', color='black')
             plt.xlabel("Month")
             plt.ylim((0, 0.7))
             plt.ylabel("Proportion")
@@ -914,10 +915,13 @@ if __name__ == "__main__":
 
     elif option == "prob threshold":
         with (PdfPages('probability_threshold.pdf') as pdf):
-            stats_unknown = pd.DataFrame(np.zeros((6, 3)),columns=['unknown_count', 'intermediate_count', 'overall_count'], index=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
+            stats_unknown = pd.DataFrame(np.zeros((6, 3)),
+                                         columns=['unknown_count', 'intermediate_count', 'overall_count'],
+                                         index=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
             for name, filepaths in filepaths_all.items():
-                stats_name = pd.DataFrame(np.zeros((6, 3)),columns=['unknown_count', 'intermediate_count', 'overall_count'],
-                                             index=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
+                stats_name = pd.DataFrame(np.zeros((6, 3)),
+                                          columns=['unknown_count', 'intermediate_count', 'overall_count'],
+                                          index=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
                 for filepath in filepaths:
                     if 'predictions_mw_layered' in filepath:
                         data = pd.read_csv(filepath, sep=',', low_memory=False)
@@ -929,12 +933,12 @@ if __name__ == "__main__":
                             row_max_ie = data_intermediate.max(axis=1, skipna=True)
                             count_below_threshold_uk = (row_max_uk < i).sum()
                             count_below_threshold_ie = (row_max_ie < i).sum()
-                            stats_name.loc[i,'unknown_count'] += count_below_threshold_uk
+                            stats_name.loc[i, 'unknown_count'] += count_below_threshold_uk
                             stats_name.loc[i, 'intermediate_count'] += count_below_threshold_ie
-                            stats_name.loc[i,'overall_count'] += data.shape[0]
+                            stats_name.loc[i, 'overall_count'] += data.shape[0]
 
                 stats_unknown += stats_name
-                stats_name['unknown_prop'] = stats_name['unknown_count']/stats_name['overall_count']
+                stats_name['unknown_prop'] = stats_name['unknown_count'] / stats_name['overall_count']
                 stats_name['intermediate_prop'] = stats_name['intermediate_count'] / stats_name['overall_count']
                 fig = plt.figure(figsize=(6, 4))
                 plt.plot(stats_name.index, stats_name['unknown_prop'], marker='o', label='unknown',
@@ -953,10 +957,10 @@ if __name__ == "__main__":
             stats_unknown['unknown_prop'] = stats_unknown['unknown_count'] / stats_unknown['overall_count']
             stats_unknown['intermediate_prop'] = stats_unknown['intermediate_count'] / stats_unknown['overall_count']
             fig = plt.figure(figsize=(6, 4))
-            plt.plot(stats_unknown.index, stats_unknown['unknown_prop'], marker='o',label='unknown',
-                         color=sim_func.COLOR_MAPPING_HTML.get('unknown', 'black'))
-            plt.plot(stats_unknown.index, stats_unknown['intermediate_prop'], marker='o',label='intermediate energy',
-                         color=sim_func.COLOR_MAPPING_HTML.get('intermediate energy', 'black'))
+            plt.plot(stats_unknown.index, stats_unknown['unknown_prop'], marker='o', label='unknown',
+                     color=sim_func.COLOR_MAPPING_HTML.get('unknown', 'black'))
+            plt.plot(stats_unknown.index, stats_unknown['intermediate_prop'], marker='o', label='intermediate energy',
+                     color=sim_func.COLOR_MAPPING_HTML.get('intermediate energy', 'black'))
 
             plt.xlabel("threshold")
             plt.ylabel("Proportion")
@@ -965,11 +969,3 @@ if __name__ == "__main__":
             plt.grid(True)
             pdf.savefig(fig)
             plt.close(fig)
-
-
-
-
-
-
-
-

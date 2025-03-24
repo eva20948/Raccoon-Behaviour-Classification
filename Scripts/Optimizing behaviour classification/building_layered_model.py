@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Filename: layered_ml.py
+Filename: building_layered_model.py
 Author: Eva Reinhardt
 Date: 2024-12-09
 Version: 1.0
@@ -10,30 +10,31 @@ algorithms.
 
 """
 
-import seaborn as sns
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import xgboost as xgb
-from sklearn import svm
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
-from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.preprocessing import normalize, StandardScaler
+import numpy as np
+
 from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from imblearn.over_sampling import SMOTE, BorderlineSMOTE, ADASYN
+from imblearn.under_sampling import RandomUnderSampler
+from imblearn.pipeline import Pipeline as ImbPipeline
+
+from sklearn import svm
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import normalize, StandardScaler
+
+import xgboost as xgb
+
 from raccoon_acc_setup import importing_raw_data as im_raw
 from raccoon_acc_setup import machine_learning_functions as mlf
 from raccoon_acc_setup import predictor_calculation as pred_cal
 from raccoon_acc_setup import plot_functions as plt_func
 from raccoon_acc_setup import variables_simplefunctions as sim_func
-
-import plotly.graph_objects as go
-
-from imblearn.over_sampling import SMOTE, BorderlineSMOTE, ADASYN
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.pipeline import Pipeline as ImbPipeline
 
 mapping = {'resting': 0, 'exploring': 1, 'walking': 2, 'climbing': 3, 'high energy': 4}
 inverted_mapping = {v: k for k, v in mapping.items()}
@@ -58,143 +59,144 @@ xgb_part = xgb.XGBClassifier(colsample_bytree=0.6, gamma=0.5,
 #     #                                  learning_rate=0.2, max_depth=4,
 #     #                                  n_estimators=20, subsample=0.8, min_child_weight = 10 )
 # }
-ml_algs = {
-    'RandomForest': [RandomForestClassifier(), {
-        'n_estimators': [20, 25, 30],  # Number of trees
-        'max_depth': [2, 4],  # Maximum depth of a tree
-        'min_samples_split': [5, 7, 10],  # Minimum samples required to split
-        'min_samples_leaf': [2, 3, 4],  # Minimum samples required at a leaf node
-        'max_features': ['auto', 'sqrt', 'log2'],  # Number of features to consider at each split
-        'bootstrap': [True],  # Use bootstrap sampling
-        'class_weight': ['balanced_subsample']  # Adjust class weights
-        #
-        # 'n_estimators': [20],  # Number of trees
-        # 'max_depth': [2],  # Maximum depth of a tree
-        # 'min_samples_split': [5],  # Minimum samples required to split
-        # 'min_samples_leaf': [2],  # Minimum samples required at a leaf node
-        # 'max_features': [3],  # Number of features to consider at each split
-        # 'bootstrap': [True],  # Use bootstrap sampling
-        # 'class_weight': ['balanced_subsample']  # Adjust class weights
-        #     # #
-    }]
-    ,
-    'SupportVectorMachine_linearkernel': [svm.SVC(probability=True, kernel="linear"), {
-        'C': [0.1, 1, 10, 80],
-        'gamma': ['scale', 'auto']  # Kernel coefficient
-    }],
-    'SupportVectorMachine_rbfkernel': [svm.SVC(probability=True, kernel="rbf"), {
-        'C': [0.1, 10, 30, 80],
-        'gamma': ['scale', 'auto']  # Kernel coefficient
-    }],
-    # 'SupportVectorMachine_polykernel': [svm.SVC(probability=True, kernel="poly"), {
-    #     'C': [0.01, 1, 10, 80],  # uniform(0.1, 10),  # Regularization parameter
-    #     'gamma': ['scale', 'auto'],  # Kernel coefficient
-    #     'degree': [2, 3, 4, 5],  # Degree for 'poly' kernel
-    #     # Independent term in kernel function for poly and sigmoid
-    #     'coef0': [0.1, 0.5, 0.8]
-    # }],
-    # 'SupportVectorMachine_sigmoid': [svm.SVC(probability=True, kernel="sigmoid"), {
-    #     'C': [0.01, 1, 10],  # uniform(0.1, 10),  # Regularization parameter
-    #     'gamma': ['scale', 'auto'],  # Kernel coefficient
-    #     # Independent term in kernel function for poly and sigmoid
-    #     # 'coef0': uniform(0, 1)
-    #     'coef0': [0.1, 0.5, 0.8]
-    # }],
-    'XGBoost': [xgb.XGBClassifier(), {
-        'n_estimators': [10, 15, 20],  # Number of trees
-        'max_depth': [2, 4],  # Maximum depth of a tree
-        'learning_rate': [0.01, 0.1, 0.2],  # Step size shrinkage
-        'subsample': [0.6, 0.8, 1.0],  # Fraction of samples used per tree
-        'colsample_bytree': [0.6, 0.8, 1.0],  # Fraction of features used per tree
-        'gamma': [0, 0.5, 1, 3],  # Minimum loss reduction
-        'min_child_weight': [2, 5, 10],  # Minimum sum of instance weight
-
-        # 'learning_rate': [0.2],  # Step size shrinkage
-        # 'subsample': [0.6],  # Fraction of samples used per tree
-        # 'colsample_bytree': [0.6],  # Fraction of features used per tree
-        # 'gamma': [0.5],  # Minimum loss reduction
-        # 'min_child_weight': [2],  # Minimum sum of instance weight
-        #
-        # 'n_estimators': [10],  # Number of trees
-        # 'max_depth': [2]  # Maximum depth of a tree
-
-    }]
-}
-
-#
-#
 # ml_algs = {
-#     # 'RandomForest': [ImbPipeline([('resampler', SMOTE()), ('classifier', RandomForestClassifier())]), {
-#     #     'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
-#     #         BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, kind='borderline-1'),
-#     #         ADASYN(sampling_strategy='minority', n_neighbors=5),
-#     #         RandomUnderSampler(random_state=42)],
-#     #     'classifier__n_estimators': [20, 25, 30],
-#     #     'classifier__max_depth': [2, 4],
-#     #     'classifier__min_samples_split': [5, 7, 10],
-#     #     'classifier__min_samples_leaf': [2, 3, 4],
-#     #     'classifier__max_features': ['auto', 'sqrt', 'log2'],
-#     #     'classifier__bootstrap': [True],
-#     #     'classifier__class_weight': ['balanced_subsample']
+#     'RandomForest': [RandomForestClassifier(), {
+#         'n_estimators': [20, 25, 30],  # Number of trees
+#         'max_depth': [2, 4],  # Maximum depth of a tree
+#         'min_samples_split': [5, 7, 10],  # Minimum samples required to split
+#         'min_samples_leaf': [2, 3, 4],  # Minimum samples required at a leaf node
+#         'max_features': ['auto', 'sqrt', 'log2'],  # Number of features to consider at each split
+#         'bootstrap': [True],  # Use bootstrap sampling
+#         'class_weight': ['balanced_subsample']  # Adjust class weights
+#         #
+#         # 'n_estimators': [20],  # Number of trees
+#         # 'max_depth': [2],  # Maximum depth of a tree
+#         # 'min_samples_split': [5],  # Minimum samples required to split
+#         # 'min_samples_leaf': [2],  # Minimum samples required at a leaf node
+#         # 'max_features': [3],  # Number of features to consider at each split
+#         # 'bootstrap': [True],  # Use bootstrap sampling
+#         # 'class_weight': ['balanced_subsample']  # Adjust class weights
+#         #     # #
+#     }]
+#     ,
+#     'SupportVectorMachine_linearkernel': [svm.SVC(probability=True, kernel="linear"), {
+#         'C': [0.1, 1, 10, 80],
+#         'gamma': ['scale', 'auto']  # Kernel coefficient
+#     }],
+#     'SupportVectorMachine_rbfkernel': [svm.SVC(probability=True, kernel="rbf"), {
+#         'C': [0.1, 10, 30, 80],
+#         'gamma': ['scale', 'auto']  # Kernel coefficient
+#     }],
+#     # 'SupportVectorMachine_polykernel': [svm.SVC(probability=True, kernel="poly"), {
+#     #     'C': [0.01, 1, 10, 80],  # uniform(0.1, 10),  # Regularization parameter
+#     #     'gamma': ['scale', 'auto'],  # Kernel coefficient
+#     #     'degree': [2, 3, 4, 5],  # Degree for 'poly' kernel
+#     #     # Independent term in kernel function for poly and sigmoid
+#     #     'coef0': [0.1, 0.5, 0.8]
 #     # }],
-#     'SupportVectorMachine_linearkernel': [ImbPipeline([('resampler', SMOTE()), ('scaling', StandardScaler()), ('classifier', svm.SVC(probability=True, kernel="linear"))
-#                                                        ]),
-#     {
-#         'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
-#             BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, kind='borderline-1'),
-#             ADASYN(sampling_strategy='minority', n_neighbors=5),
-#             RandomUnderSampler(random_state=42)],
-#         'scaling': [StandardScaler()],
-#         'classifier__C': [0.1, 1, 10, 80],
-#         'classifier__gamma': ['scale', 'auto']
-#     }],
-#     'SupportVectorMachine_rbfkernel': [ImbPipeline([('resampler', SMOTE()), ('scaling', StandardScaler()), ('classifier', svm.SVC(probability=True, kernel="rbf"))]),  {
-#         'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
-#         BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, kind='borderline-1'),
-#         ADASYN(sampling_strategy='minority', n_neighbors=5),
-#         RandomUnderSampler(random_state=42)],
-#         'scaling': [StandardScaler()],
-#         'classifier__C': [0.1, 10, 30, 80],
-#         'classifier__gamma': ['scale', 'auto']
-#     }],
-#     # 'SupportVectorMachine_polykernel': [ImbPipeline([('resampler', SMOTE()), ('scaling', StandardScaler()),
-#     #                                                 ('classifier', svm.SVC(probability=True, kernel="poly"))]), {
-#     #        'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
-#     #                      BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5,
-#     #                                      kind='borderline-1'),
-#     #                      ADASYN(sampling_strategy='minority', n_neighbors=5),
-#     #                      RandomUnderSampler(random_state=42)],
-#     #        'scaling': [StandardScaler()],
-#     #         'classifier__C': [0.01, 1, 10, 80],  # uniform(0.1, 10),  # Regularization parameter
-#     #         'classifier__gamma': ['scale', 'auto'],  # Kernel coefficient
-#     #         'classifier__degree': [2, 3, 4, 5],  # Degree for 'poly' kernel
-#     #         # Independent term in kernel function for poly and sigmoid
-#     #         'classifier__coef0': [0.1, 0.5, 0.8]
-#     #                                    }]
-#     # #,
-#     'XGBoost': [ImbPipeline([('resampler', SMOTE()), ('classifier', xgb.XGBClassifier())]), {
-#         'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
-#         BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, kind='borderline-1'),
-#         ADASYN(sampling_strategy='minority', n_neighbors=5),
-#         RandomUnderSampler(random_state=42)],
-#         'classifier__n_estimators': [10, 15, 20],
-#         'classifier__max_depth': [2, 4],
-#         'classifier__learning_rate': [0.01, 0.1, 0.2],
-#         'classifier__subsample': [0.6, 0.8, 1.0],
-#         'classifier__colsample_bytree': [0.6, 0.8, 1.0],
-#         'classifier__gamma': [0, 0.5, 1, 3],
-#         'classifier__min_child_weight': [2, 5, 10]
+#     # 'SupportVectorMachine_sigmoid': [svm.SVC(probability=True, kernel="sigmoid"), {
+#     #     'C': [0.01, 1, 10],  # uniform(0.1, 10),  # Regularization parameter
+#     #     'gamma': ['scale', 'auto'],  # Kernel coefficient
+#     #     # Independent term in kernel function for poly and sigmoid
+#     #     # 'coef0': uniform(0, 1)
+#     #     'coef0': [0.1, 0.5, 0.8]
+#     # }],
+#     'XGBoost': [xgb.XGBClassifier(), {
+#         'n_estimators': [10, 15, 20],  # Number of trees
+#         'max_depth': [2, 4],  # Maximum depth of a tree
+#         'learning_rate': [0.01, 0.1, 0.2],  # Step size shrinkage
+#         'subsample': [0.6, 0.8, 1.0],  # Fraction of samples used per tree
+#         'colsample_bytree': [0.6, 0.8, 1.0],  # Fraction of features used per tree
+#         'gamma': [0, 0.5, 1, 3],  # Minimum loss reduction
+#         'min_child_weight': [2, 5, 10],  # Minimum sum of instance weight
+#
+#         # 'learning_rate': [0.2],  # Step size shrinkage
+#         # 'subsample': [0.6],  # Fraction of samples used per tree
+#         # 'colsample_bytree': [0.6],  # Fraction of features used per tree
+#         # 'gamma': [0.5],  # Minimum loss reduction
+#         # 'min_child_weight': [2],  # Minimum sum of instance weight
+#         #
+#         # 'n_estimators': [10],  # Number of trees
+#         # 'max_depth': [2]  # Maximum depth of a tree
+#
 #     }]
 # }
 
 
-if __name__ == "__main__":
-    filepaths_peter = [
-        sim_func.IMPORT_PARAMETERS['Peter']['filepath_pred']]
-    filepaths_domi = [
-        sim_func.IMPORT_PARAMETERS['Dominique']['filepath_pred']]
 
-    filepaths = [filepaths_peter, filepaths_domi]
+ml_algs = {
+    # 'RandomForest': [ImbPipeline([('resampler', SMOTE()), ('classifier', RandomForestClassifier())]), {
+    #     'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
+    #         BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, kind='borderline-1'),
+    #         ADASYN(sampling_strategy='minority', n_neighbors=5),
+    #         RandomUnderSampler(random_state=42)],
+    #     'classifier__n_estimators': [20, 25, 30],
+    #     'classifier__max_depth': [2, 4],
+    #     'classifier__min_samples_split': [5, 7, 10],
+    #     'classifier__min_samples_leaf': [2, 3, 4],
+    #     'classifier__max_features': ['auto', 'sqrt', 'log2'],
+    #     'classifier__bootstrap': [True],
+    #     'classifier__class_weight': ['balanced_subsample']
+    # }],
+    'SupportVectorMachine_linearkernel': [ImbPipeline([('resampler', SMOTE()), ('scaling', StandardScaler()), ('classifier', svm.SVC(probability=True, kernel="linear"))
+                                                       ]),
+    {
+        'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
+            BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, kind='borderline-1'),
+            ADASYN(sampling_strategy='minority', n_neighbors=5),
+            RandomUnderSampler(random_state=42)],
+        'scaling': [StandardScaler()],
+        'classifier__C': [0.1, 1, 10, 80],
+        'classifier__gamma': ['scale', 'auto']
+    }],
+    'SupportVectorMachine_rbfkernel': [ImbPipeline([('resampler', SMOTE()), ('scaling', StandardScaler()), ('classifier', svm.SVC(probability=True, kernel="rbf"))]),  {
+        'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
+        BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, kind='borderline-1'),
+        ADASYN(sampling_strategy='minority', n_neighbors=5),
+        RandomUnderSampler(random_state=42)],
+        'scaling': [StandardScaler()],
+        'classifier__C': [0.1, 10, 30, 80],
+        'classifier__gamma': ['scale', 'auto']
+    }],
+    # 'SupportVectorMachine_polykernel': [ImbPipeline([('resampler', SMOTE()), ('scaling', StandardScaler()),
+    #                                                 ('classifier', svm.SVC(probability=True, kernel="poly"))]), {
+    #        'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
+    #                      BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5,
+    #                                      kind='borderline-1'),
+    #                      ADASYN(sampling_strategy='minority', n_neighbors=5),
+    #                      RandomUnderSampler(random_state=42)],
+    #        'scaling': [StandardScaler()],
+    #         'classifier__C': [0.01, 1, 10, 80],  # uniform(0.1, 10),  # Regularization parameter
+    #         'classifier__gamma': ['scale', 'auto'],  # Kernel coefficient
+    #         'classifier__degree': [2, 3, 4, 5],  # Degree for 'poly' kernel
+    #         # Independent term in kernel function for poly and sigmoid
+    #         'classifier__coef0': [0.1, 0.5, 0.8]
+    #                                    }]
+    # #,
+    'XGBoost': [ImbPipeline([('resampler', SMOTE()), ('classifier', xgb.XGBClassifier())]), {
+        'resampler': [SMOTE(sampling_strategy='minority', k_neighbors=5),
+        BorderlineSMOTE(sampling_strategy='auto', k_neighbors=5, kind='borderline-1'),
+        ADASYN(sampling_strategy='minority', n_neighbors=5),
+        RandomUnderSampler(random_state=42)],
+        'classifier__n_estimators': [10, 15, 20],
+        'classifier__max_depth': [2, 4],
+        'classifier__learning_rate': [0.01, 0.1, 0.2],
+        'classifier__subsample': [0.6, 0.8, 1.0],
+        'classifier__colsample_bytree': [0.6, 0.8, 1.0],
+        'classifier__gamma': [0, 0.5, 1, 3],
+        'classifier__min_child_weight': [2, 5, 10]
+    }]
+}
+
+filepaths_peter = [
+    sim_func.IMPORT_PARAMETERS['Peter']['filepath_pred']]
+filepaths_domi = [
+    sim_func.IMPORT_PARAMETERS['Dominique']['filepath_pred']]
+
+filepaths = [filepaths_peter, filepaths_domi]
+
+if __name__ == "__main__":
+
 
     pred = pred_cal.create_pred_complete(filepaths, reduced_features=False)
 
@@ -242,26 +244,26 @@ if __name__ == "__main__":
         classes.append('intermediate energy')
 
         models1 = [
-            # xgb.XGBClassifier(colsample_bytree= 0.8, gamma= 0.5, learning_rate= 0.2, max_depth= 4,
-            #                    min_child_weight= 2, n_estimators= 15, subsample= 0.8),
-            #   xgb.XGBClassifier(colsample_bytree= 1.0, gamma= 0.5, learning_rate= 0.2, max_depth= 4,
-            #                     min_child_weight= 2, n_estimators= 20, subsample= 1.0), # reduced features
-            #   svm.SVC(kernel = 'rbf', probability=True, C= 80, gamma= 'auto'), # reduced features
+            xgb.XGBClassifier(colsample_bytree= 0.8, gamma= 0.5, learning_rate= 0.2, max_depth= 4,
+                               min_child_weight= 2, n_estimators= 15, subsample= 0.8),
+              xgb.XGBClassifier(colsample_bytree= 1.0, gamma= 0.5, learning_rate= 0.2, max_depth= 4,
+                                min_child_weight= 2, n_estimators= 20, subsample= 1.0), # reduced features
+              svm.SVC(kernel = 'rbf', probability=True, C= 80, gamma= 'auto'), # reduced features
             xgb.XGBClassifier(colsample_bytree=1.0, gamma=0.5, learning_rate=0.2, max_depth=4,
                               min_child_weight=2, n_estimators=20, subsample=1.0)
         ]
 
         models2 = [
-            # xgb.XGBClassifier(colsample_bytree=1.0, gamma=1, learning_rate=0.2, max_depth=4,
-            #                                  min_child_weight= 10, n_estimators= 20, subsample= 0.6),
+            xgb.XGBClassifier(colsample_bytree=1.0, gamma=1, learning_rate=0.2, max_depth=4,
+                                             min_child_weight= 10, n_estimators= 20, subsample= 0.6),
             xgb.XGBClassifier(colsample_bytree=1.0, gamma=1, learning_rate=0.2, max_depth=4,
                               min_child_weight=10, n_estimators=20, subsample=0.7),
-            # svm.SVC(kernel = 'rbf', C= 80, gamma= 'auto', probability=True),
-            # xgb.XGBClassifier(colsample_bytree= 0.6, gamma= 0, learning_rate= 0.2, max_depth= 4,
-            #                   min_child_weight= 5, n_estimators= 20, subsample= 0.8),  # reduced features
-            #  RandomForestClassifier(bootstrap= True, class_weight= 'balanced_subsample', max_depth= 4,
-            #                         max_features= "log2", min_samples_leaf= 3, min_samples_split= 7,
-            #                         n_estimators= 30)
+            svm.SVC(kernel = 'rbf', C= 80, gamma= 'auto', probability=True),
+            xgb.XGBClassifier(colsample_bytree= 0.6, gamma= 0, learning_rate= 0.2, max_depth= 4,
+                              min_child_weight= 5, n_estimators= 20, subsample= 0.8),  # reduced features
+             RandomForestClassifier(bootstrap= True, class_weight= 'balanced_subsample', max_depth= 4,
+                                    max_features= "log2", min_samples_leaf= 3, min_samples_split= 7,
+                                    n_estimators= 30)
         ]
         with PdfPages(sim_func.EXPORT_PATH + '/layered_model/test.pdf') as pdf:
             for i_model1 in range(len(models1)):

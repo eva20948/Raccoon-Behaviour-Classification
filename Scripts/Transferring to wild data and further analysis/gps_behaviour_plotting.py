@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-Filename: gps_plotting.py
+Filename: gps_behaviour_plotting.py
 Author: Eva Reinhardt
 Date: 2024-12-09
 Version: 1.0
@@ -18,32 +18,43 @@ calculate_distance(): calculates distance between two consecutive GPS points
 
 create_arrow_icon(): creates the arrow icon that is displayed between two consecutive points
 """
-import raccoon_acc_setup.variables_simplefunctions as sim_func
-import pandas as pd
+
 import os
 import re
+
+import pandas as pd
+import numpy as np
+
 from folium import Element
 import math
 from scipy.spatial import ConvexHull
-import numpy as np
+
 import folium
-from mpl_toolkits.basemap import Basemap
-from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 import rasterio
 from matplotlib.colors import Normalize
-import h5py
+import raccoon_acc_setup.variables_simplefunctions as sim_func
 
+filepaths_class = [sim_func.IMPORT_PATH_CLASS + f for f in os.listdir(sim_func.IMPORT_PATH_CLASS) if
+                   os.path.isfile(os.path.join(sim_func.IMPORT_PATH_CLASS, f)) and '.csv' in f and
+                   'predictions_mw_layered' in f]
+filepaths_caros = [f for f in filepaths_class if 'Caro S' in f]
+filepaths_carow = [f for f in filepaths_class if 'Caro W' in f]
+filepaths_katti = [f for f in filepaths_class if 'Katti' in f]
 
-def calculate_direction(start, end):
+filepaths = {'Caro S': filepaths_caros,
+             'Caro W': filepaths_carow,
+             'Katti': filepaths_katti}
+
+def calculate_direction(start_func: (float, float), end_func: (float, float)):
     """
     function to calculate the arrow's direction
-    @param start: start point (coordinates)
-    @param end: end point (coordinates)
+    @param start_func: start point (coordinates)
+    @param end_func: end point (coordinates)
     @return: direction in degrees
     """
-    lat1, lon1 = start
-    lat2, lon2 = end
+    lat1, lon1 = start_func
+    lat2, lon2 = end_func
 
     lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
 
@@ -61,15 +72,15 @@ def calculate_direction(start, end):
     return direction
 
 
-def calculate_distance(start, end):
+def calculate_distance(start_func: (float, float), end_func: (float, float)):
     """
     function to calculate distance between two points
-    @param start: start point (coordinates)
-    @param end: end point (coordinates)
+    @param start_func: start point (coordinates)
+    @param end_func: end point (coordinates)
     @return: distance in meters
     """
-    lat1, lon1 = start
-    lat2, lon2 = end
+    lat1, lon1 = start_func
+    lat2, lon2 = end_func
 
     R = 6371000
 
@@ -80,11 +91,11 @@ def calculate_distance(start, end):
     a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-    distance = R * c
-    return distance
+    distance_func = R * c
+    return distance_func
 
 
-def create_arrow_icon(angle):
+def create_arrow_icon(angle: float):
     """
     function to create the arrow icon that can be used in folium
     @param angle: angle of line between points
@@ -99,17 +110,6 @@ def create_arrow_icon(angle):
 
 
 if __name__ == "__main__":
-    filepaths_class = [sim_func.IMPORT_PATH_CLASS + f for f in os.listdir(sim_func.IMPORT_PATH_CLASS) if
-                       os.path.isfile(os.path.join(sim_func.IMPORT_PATH_CLASS, f)) and '.csv' in f and
-                       'predictions_mw_layered' in f]
-    filepaths_caros = [f for f in filepaths_class if 'Caro S' in f]
-    filepaths_carow = [f for f in filepaths_class if 'Caro W' in f]
-    filepaths_katti = [f for f in filepaths_class if 'Katti' in f]
-
-    filepaths = {'Caro S': filepaths_caros,
-                 'Caro W': filepaths_carow,
-                 'Katti': filepaths_katti}
-
     all_polygons = {}
 
     option = "all"

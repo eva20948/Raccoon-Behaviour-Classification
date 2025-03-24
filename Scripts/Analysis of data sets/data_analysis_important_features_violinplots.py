@@ -1,49 +1,49 @@
 """
-Filename: violinplots_checkforthreshold.py
+Filename: data_analysis_important_features_violinplots.py
 Author: Eva Reinhardt
 Date: 2024-12-09
 Version: 1.0
-Description: violinplots here are used to evaluate the relationship between behavior and predictors.
-thresholds are calculated and depicted to distinguish different behavior groups. Ndyn is prominent for that
+Description: This file is used to create violinplots of chosen features by behaviour. Additionally, the analysis
+of using only the first part of a burst or the first and last portion of desired burst length can be conducted
+when choosing the option "Comparison moving window".
+The thirs option 'Testing generalization3 climbing and walking' helps to compare behaviours labelled as "climbing"
+to behaviours labelled as "walking".
+
 
 
 """
-from raccoon_acc_setup import variables_simplefunctions as sim_func
-from raccoon_acc_setup import importing_raw_data as im_raw
-from raccoon_acc_setup import gui_functions as guif
-from raccoon_acc_setup import plot_functions as plt_func
-import pandas as pd
 
-from tkinter import filedialog
+import pandas as pd
 import numpy as np
 
-from sklearn.cluster import KMeans
+from tkinter import filedialog
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
 
+from sklearn.cluster import KMeans
+
+from raccoon_acc_setup import variables_simplefunctions as sim_func
+from raccoon_acc_setup import importing_raw_data as im_raw
+from raccoon_acc_setup import gui_functions as guif
+from raccoon_acc_setup import plot_functions as plt_func
+
 if __name__ == '__main__':
 
-    plt.rcParams.update({'font.size': 16})  # Change 14 to any desired size
+    plt.rcParams.update({'font.size': 16})
 
     option1 = guif.choose_option(
         options=['Normal violinplots', 'Comparison moving window', 'Testing generalization3 climbing and walking'])
     if option1 == 'Normal violinplots':
         option = guif.choose_option(options=['Choose files myself', 'Show all files'])
-
         if option == 'Choose files myself':
             filepaths = [guif.open_file_dialog('Select a file or files - predictors')]
         else:
             filepaths_peter = [sim_func.IMPORT_PARAMETERS['Peter']['filepath_pred']]
 
-            #### hier unbedingt noch die pred files erstellen!! aber muss nur für die ersten 54 samples pro burst sein! 
-            #### dann die violinplots neu erstellen für die unterschiedlichen predictors
-            # filepaths_domi = ['/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten_Waschbär Msc Dominique-IZW/predictors_tag5032_xz_burst_red.csv', 
-            #                 '/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten_Waschbär Msc Dominique-IZW/predictors_tag5033_xz_burst_red.csv']
             filepaths_domi = [sim_func.IMPORT_PARAMETERS['Dominique']['filepath_pred']]
             filepaths = [filepaths_peter, filepaths_domi]
-        # options = rac.choose_multiple_options(options = ['Xdyn', 'Ydyn', 'Zdyn', 'Ndyn', 'Nvar', 'Odba', 'Roll', 'Pitch', 'Yaw','fft_max', 'fft_wmean'])
         options = ['XZmax - XZmin', 'XZvar', 'Yvar', 'Ymax - Ymin', 'Odba', 'fft_max', 'fft_wmean', 'fft_std']
         options_col = '|'.join(options) + '|Ndyn|behavior|fl'
 
@@ -51,17 +51,11 @@ if __name__ == '__main__':
         option2 = guif.choose_option(options=['Peter', 'Dominique'])
 
         if option2 == 'Peter':
-            filepaths = [[
-                             '/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten Waschbär Bsc Peter Geiger-IZW/predictors/pred_all_first.csv',
+            filepaths = [['/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten Waschbär Bsc Peter Geiger-IZW/predictors/pred_all_first.csv',
                              sim_func.IMPORT_PARAMETERS['Peter']['filepath_pred']]]
         else:
-            # filepaths = [['/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten_Waschbär Msc Dominique-IZW/predictors_tag5032_12_13_first54.csv',
-            #               '/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten_Waschbär Msc Dominique-IZW/predictors_tag5032_12_13_firstlast54.csv',
-            #               '/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten_Waschbär Msc Dominique-IZW/predictors_tag5033_12_13_first54.csv',
-            #               '/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten_Waschbär Msc Dominique-IZW/predictors_tag5033_12_13_firstlast54.csv'
-            #               ]]
-            filepaths = [[
-                             '/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten_Waschbär Msc Dominique-IZW/predictors_first54.csv',
+
+            filepaths = [['/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten_Waschbär Msc Dominique-IZW/predictors_first54.csv',
                              '/media/eva/eva-reinhar/your folders/01 raw data/Labeldaten_Waschbär Msc Dominique-IZW/predictors_firstlast54.csv'
                              ]]
         # options = rac.choose_multiple_options(options = ['Xdyn', 'Ydyn', 'Zdyn', 'Ndyn', 'Nvar', 'Odba', 'Roll', 'Pitch', 'Yaw','fft_max', 'fft_wmean'])
@@ -88,7 +82,6 @@ if __name__ == '__main__':
 
                 if 'Peter' in filepath:
                     pred_1 = im_raw.convert_beh(pred_1, 'Peter')
-                    # name.append('peter')
                     name = 'Peter'
                     replacement_dict = {}
                     words_to_remove = []
@@ -115,7 +108,7 @@ if __name__ == '__main__':
 
                 pred = pd.concat([pred, pred_1], ignore_index=True)
 
-            ## only to check
+
             if option1 == 'Comparison moving window':
                 first = pred.groupby('fl').get_group('first').drop('fl', axis=1)
                 firstlast = pred.groupby('fl').get_group('firstlast').drop('fl', axis=1)
@@ -144,18 +137,16 @@ if __name__ == '__main__':
                 pred['behavior'] = pd.Categorical(pred['behavior'], categories=medians['behavior'], ordered=True)
                 pred = pred.sort_values('behavior')
 
-                # Apply K-means clustering
+                # k-means clustering for threshold determination
                 median_values = medians['Ndyn_median'].values.reshape(-1, 1)
                 kmeans = KMeans(n_clusters=3, random_state=0).fit(median_values)
                 medians['activity_level'] = kmeans.labels_
 
-                # Determine which cluster is active and which is calm
                 cluster_centers = kmeans.cluster_centers_.flatten()
                 active_cluster = list(cluster_centers).index(max(cluster_centers))
                 intermediate_cluster = list(cluster_centers).index(np.median(cluster_centers))
                 calm_cluster = list(cluster_centers).index(min(cluster_centers))
 
-                # Identify boundaries
                 active_medians = medians[medians['activity_level'] == active_cluster]['Ndyn_median']
                 intermediate_medians = medians[medians['activity_level'] == intermediate_cluster]['Ndyn_median']
                 calm_medians = medians[medians['activity_level'] == calm_cluster]['Ndyn_median']
@@ -174,26 +165,19 @@ if __name__ == '__main__':
 
                 plt.figure(figsize=(12, 10))
 
-                # plotting the violinplot: 'behavior' are the categories (x), the 'Ndyn' is the y-variable,
-                # the violins are splitted (one side and color denotes one animal, other side and color the other),
-                # median, maxs and mins are shown
-                # sns.violinplot(x=pred['behavior'], y = pred['Ndyn'],  palette=my_pal, inner = 'quart')
                 if option1 == 'Normal violinplots':
                     violin_parts = plt.violinplot(data, showmedians=True)
                     plt.xticks(ticks=np.arange(1, len(data) + 1), labels=pred['behavior'].unique(), rotation=90)
                 elif option1 == 'Comparison moving window':
-                    # Split the dataset based on the 'fl' column
+                    # splitting of dataset based on the 'fl' column
                     data_first = pred[pred['fl'] == 'first']
                     data_firstlast = pred[pred['fl'] == 'firstlast']
 
-                    # Prepare data for the violin plots
                     data_left = [group['Ndyn'].values for name, group in data_first.groupby('behavior')]
                     data_right = [group['Ndyn'].values for name, group in data_firstlast.groupby('behavior')]
 
-                    # Get unique behaviors for labeling the x-axis
                     behaviors = pred['behavior'].unique()
 
-                    # Loop through each category in behavior and plot the violins
                     for i in range(len(behaviors)):
                         parts_left = plt.violinplot(data_left[i], positions=[i], points=60, widths=0.9,
                                                     showextrema=True,
@@ -216,7 +200,6 @@ if __name__ == '__main__':
                             pc.set_facecolor('goldenrod')
                             pc.set_edgecolor('black')
                             pc.set_alpha(0.7)
-                            # pc.set_offsets([i + 0.2, 0])
                         parts_right['cmedians'].set_color('darkgoldenrod')
                         parts_right['cmins'].set_color('darkgoldenrod')
                         parts_right['cmaxes'].set_color('darkgoldenrod')
@@ -224,11 +207,9 @@ if __name__ == '__main__':
                     violin_parts = [parts_left, parts_right]
                     plt.xticks(ticks=np.arange(len(behaviors)), labels=behaviors, rotation=90)
 
-                    # Create legend handles
                     left_patch = mpatches.Patch(color='cadetblue', label='First Group')
                     right_patch = mpatches.Patch(color='goldenrod', label='FirstLast Group')
 
-                    # Add the legend to the plot
                     plt.legend(handles=[left_patch, right_patch], loc='upper right', title='Groups')
 
                 plt.axhline(threshold_1, color='green', linestyle='--', label='Threshold')
@@ -240,17 +221,8 @@ if __name__ == '__main__':
                 plt.ylim(0, 3)
 
                 plt.grid()
-                #
-                # if isinstance(violin_parts, dict) and 'bodies' in violin_parts:
-                #     for i, vp in enumerate(violin_parts['bodies']):
-                #         behavior = pred['behavior'].unique()[i]
-                #         vp.set_facecolor(my_pal[behavior])  # Color each violin
-                #         vp.set_edgecolor('black')  # Set edge color for visibility
-                #         vp.set_alpha(0.7)  # Adjust transparency if needed
 
-                # plot the plot
                 plt.tight_layout()
-                # plt.show()
                 pdf.savefig()
                 plt.close()
 

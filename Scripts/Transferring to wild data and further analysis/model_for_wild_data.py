@@ -16,32 +16,26 @@ adding_gps_column(): adding additional columns with gps data
 
 """
 
+
+import re
+import os
+import joblib
+
+import pandas as pd
+import numpy as np
+
+from sklearn.base import BaseEstimator
+from sklearn.preprocessing import LabelEncoder
+from sklearn import svm
+
+import xgboost as xgb
+
 from raccoon_acc_setup import predictor_calculation as pred_cal
 from raccoon_acc_setup import variables_simplefunctions as sim_func
 from raccoon_acc_setup import machine_learning_functions as mlf
 from raccoon_acc_setup import importing_raw_data as im_raw
 from raccoon_acc_setup import plot_functions as plt_func
 from raccoon_acc_setup import gui_functions as guif
-
-import joblib
-
-import re
-import os
-
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.base import BaseEstimator
-
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-
-from sklearn import svm
-
-import xgboost as xgb
-
-from sklearn.pipeline import Pipeline
-from imblearn.pipeline import Pipeline as ImbPipeline
-from imblearn.over_sampling import SMOTE, BorderlineSMOTE, ADASYN
 
 mapping = {'resting': 0, 'exploring': 1, 'walking': 2, 'climbing': 3, 'high energy': 4, 'unknown': 5}
 inverted_mapping = {v: k for k, v in mapping.items()}
@@ -55,11 +49,6 @@ model1 = xgb.XGBClassifier(colsample_bytree=1.0, gamma=0.5, learning_rate=0.2, m
 model2 = xgb.XGBClassifier(colsample_bytree=1.0, gamma=1, learning_rate=0.2, max_depth=4,
                            min_child_weight=10, n_estimators=20, subsample=0.7)
 
-# model_comp = xgb.XGBClassifier(colsample_bytree=0.8, gamma=1,
-#                                learning_rate=0.2, max_depth=4,
-#                                n_estimators=20, subsample=0.8, min_child_weight=10)
-
-
 model_comp = svm.SVC(probability=True, kernel="rbf", C=80, gamma="scale")
 
 time_of_day_colors = {
@@ -68,6 +57,38 @@ time_of_day_colors = {
     2: 'goldenrod',
     3: 'orange',
 }
+
+filepaths_peter = [
+    sim_func.IMPORT_PARAMETERS['Peter']['filepath_pred']]
+filepaths_domi = [
+    sim_func.IMPORT_PARAMETERS['Dominique']['filepath_pred']]
+
+filepaths = [filepaths_peter, filepaths_domi]
+
+filepaths_pred_katti = [[
+    '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild - Katti Meyer/ACC_only_3/pred_tag5123red.txt',
+    '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild - Katti Meyer/ACC_only_3/pred_tag5124red.txt',
+    '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild - Katti Meyer/ACC_only_3/pred_tag5125red.txt',
+    '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild - Katti Meyer/ACC_only_3/pred_tag5126red.txt']]
+filepaths_pred_caros = [[
+    '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild BB - Caro Scholz-Biomove/pred_1628_red_incl_gps.csv',
+    '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild BB - Caro Scholz-Biomove/pred_1630_red_incl_gps.csv',
+    '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild BB - Caro Scholz-Biomove/pred_1631_red_incl_gps.csv'
+]]
+filepaths_pred_carow = [[
+    '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild Berlin - Caro Weh-IZW/pred_acc_all_20190402red.csv'
+]]
+filepaths_wild = [filepaths_pred_katti, filepaths_pred_carow, filepaths_pred_caros]
+#filepaths_wild = [filepaths_pred_caros]
+
+fs_katti = 16.67
+filepaths_acc_katti = sim_func.IMPORT_PARAMETERS['Katti']['filepath_acc']
+fs_caros = 18.74
+filepaths_acc_caros = [
+    '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild BB - Caro Scholz-Biomove/1630_ACC_movebankred.csv']
+# sim_func.IMPORT_PARAMETERS['Caro S']['filepath_acc']
+fs_carow = 33.3
+filepaths_acc_carow = sim_func.IMPORT_PARAMETERS['Caro W']['filepath_acc']
 
 
 def including_moving_window(filepath_func: str, m1: BaseEstimator, m2: BaseEstimator, m_comp: BaseEstimator) -> (
@@ -94,7 +115,7 @@ def including_moving_window(filepath_func: str, m1: BaseEstimator, m2: BaseEstim
     y_prob_3_all_func = []
     y_prob_comp_all_func = []
     y_prob_comp_wo_mw = []
-    y_prob_3_wo_mw = []
+    y_prob_3_wo_mw_func = []
 
     data = im_raw.import_acc_data(filepath_func)
 
@@ -133,24 +154,24 @@ def including_moving_window(filepath_func: str, m1: BaseEstimator, m2: BaseEstim
 
             y_prob_3_all_func.append(y_prob_3_bursts.iloc[max_idx_3].to_dict())
             y_prob_comp_all_func.append(y_prob_comp_bursts.iloc[max_idx_comp].to_dict())
-            y_prob_3_wo_mw.append(y_prob_3_bursts.iloc[0].to_dict())
+            y_prob_3_wo_mw_func.append(y_prob_3_bursts.iloc[0].to_dict())
             y_prob_comp_wo_mw.append(y_prob_comp_bursts.iloc[0])
 
     y_prob_3_all_func = pd.DataFrame(y_prob_3_all_func)
     y_prob_comp_all_func = pd.DataFrame(y_prob_comp_all_func)
 
-    y_prob_3_wo_mw = pd.DataFrame(y_prob_3_wo_mw)
+    y_prob_3_wo_mw_func = pd.DataFrame(y_prob_3_wo_mw_func)
     y_prob_comp_wo_mw = pd.DataFrame(y_prob_comp_wo_mw)
 
-    return y_prob_3_all_func, y_prob_comp_all_func, y_prob_3_wo_mw, y_prob_comp_wo_mw
+    return y_prob_3_all_func, y_prob_comp_all_func, y_prob_3_wo_mw_func, y_prob_comp_wo_mw
 
 
-def adding_gps_column(filepath_func: str, y_prob: pd.DataFrame, logger: str) -> pd.DataFrame:
+def adding_gps_column(filepath_func: str, y_prob: pd.DataFrame, logger_func: str) -> pd.DataFrame:
     """
     function to include gps in the dataframe
     @param filepath_func: filepath to the acc file, used to check for fitting gps files in the same directory
     @param y_prob: dataframe that gps should be added to, has to contain 'datetime' column
-    @param logger: logger number to filter the gps dataframe
+    @param logger_func: logger number to filter the gps dataframe
     @return: dataframe including the new gps data
     """
     filepath_gps_func = filepath_func.split('/')
@@ -179,7 +200,7 @@ def adding_gps_column(filepath_func: str, y_prob: pd.DataFrame, logger: str) -> 
             filepath_gps_func = guif.choose_option(matching_files, 'Which file should be used?')
     gps_func = pd.read_table(filepath_gps_func, sep=',')
     if 'tag-local-identifier' in gps_func.columns:
-        gps_func = gps_func[gps_func['tag-local-identifier'] == int(logger)]
+        gps_func = gps_func[gps_func['tag-local-identifier'] == int(logger_func)]
     if 'timestamp' in gps_func.columns:
         gps_func['datetime'] = pd.to_datetime(gps_func['timestamp'])
     elif 'datetime' in gps_func.columns:
@@ -194,12 +215,6 @@ def adding_gps_column(filepath_func: str, y_prob: pd.DataFrame, logger: str) -> 
 
 
 if __name__ == "__main__":
-    filepaths_peter = [
-        sim_func.IMPORT_PARAMETERS['Peter']['filepath_pred']]
-    filepaths_domi = [
-        sim_func.IMPORT_PARAMETERS['Dominique']['filepath_pred']]
-
-    filepaths = [filepaths_peter, filepaths_domi]
 
     # output_pdf_path = filedialog.asksaveasfilename(title="Save as")
     pred = pred_cal.create_pred_complete(filepaths, reduced_features=False)
@@ -224,31 +239,6 @@ if __name__ == "__main__":
     joblib.dump(model2, 'xgboost_model2.joblib')
     joblib.dump(model_comp, 'svm_model_comp.joblib')
     joblib.dump(label_encoder, 'label_encoder.joblib')
-
-    filepaths_pred_katti = [[
-        '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild - Katti Meyer/ACC_only_3/pred_tag5123red.txt',
-        '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild - Katti Meyer/ACC_only_3/pred_tag5124red.txt',
-        '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild - Katti Meyer/ACC_only_3/pred_tag5125red.txt',
-        '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild - Katti Meyer/ACC_only_3/pred_tag5126red.txt']]
-    filepaths_pred_caros = [[
-        '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild BB - Caro Scholz-Biomove/pred_1628_red_incl_gps.csv',
-        '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild BB - Caro Scholz-Biomove/pred_1630_red_incl_gps.csv',
-        '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild BB - Caro Scholz-Biomove/pred_1631_red_incl_gps.csv'
-    ]]
-    filepaths_pred_carow = [[
-        '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild Berlin - Caro Weh-IZW/pred_acc_all_20190402red.csv'
-    ]]
-    filepaths_wild = [filepaths_pred_katti, filepaths_pred_carow, filepaths_pred_caros]
-    # filepaths_wild = [filepaths_pred_caros]
-
-    fs_katti = 16.67
-    filepaths_acc_katti = sim_func.IMPORT_PARAMETERS['Katti']['filepath_acc']
-    fs_caros = 18.74
-    filepaths_acc_caros = [
-        '/media/eva/eva-reinhar/your folders/01 raw data/Waschbär wild BB - Caro Scholz-Biomove/1630_ACC_movebankred.csv']
-    # sim_func.IMPORT_PARAMETERS['Caro S']['filepath_acc']
-    fs_carow = 33.3
-    filepaths_acc_carow = sim_func.IMPORT_PARAMETERS['Caro W']['filepath_acc']
 
     option_mw = guif.choose_option(['Yes', 'No'], title='Do you want to use moving window?')
     if option_mw == 'No':
