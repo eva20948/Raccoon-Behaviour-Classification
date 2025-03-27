@@ -18,9 +18,11 @@ save_pred(): dialog to choose how to save files.
 
 """
 
+import pandas as pd
+
 import tkinter as tk
 from tkinter import filedialog
-import pandas as pd
+
 
 def open_file_dialog(which_file: str) -> tuple[str, ...]:
     """

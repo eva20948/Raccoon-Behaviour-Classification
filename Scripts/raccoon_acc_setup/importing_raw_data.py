@@ -29,9 +29,11 @@ convert_beh(): converting behavior (translation and generalization options)
 
 behavior_combi_domi(): Function to generalize certain behaviors in Dominique's datasets
 """
+
+import csv
+
 import pandas as pd
 import numpy as np
-import csv
 
 from . import variables_simplefunctions as sim_func
 from . import gui_functions as guif

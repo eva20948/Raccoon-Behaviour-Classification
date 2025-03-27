@@ -22,8 +22,7 @@ from . import machine_learning_functions as mlf
 
 
 
-
-def calculate_features(X: pd.Series, Y: pd.Series, Z: pd.Series, XZ: pd.Series, datetime, fs=33.3) -> list:
+def calculate_features(X: pd.Series, Y: pd.Series, Z: pd.Series, XZ: pd.Series, datetime, fs=sim_func.GENERAL_FREQ) -> list:
     """
     function to calculate features from the raw (but converted to g) data
     @param X: x component of burst
@@ -122,8 +121,8 @@ def calculate_pred(data: pd.DataFrame, frequence, mw: bool = False, step: int = 
                     optional columns: behavior (1 or 2 columns))
     """
     if not step:
-        step = int((frequence* 54/sim_func.GENERAL_FREQ)/2)
-    burst_len = int(frequence* 54/sim_func.GENERAL_FREQ)
+        step = int((frequence* sim_func.SAMPLE_LENGTH_AT_GEN_FREQ/sim_func.GENERAL_FREQ)/2)
+    burst_len = int(frequence* sim_func.SAMPLE_LENGTH_AT_GEN_FREQ/sim_func.GENERAL_FREQ)
     columns_predictors = sim_func.COLUMNS_PREDICTORS
 
     # Determine if behavior columns are present

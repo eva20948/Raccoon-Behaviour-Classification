@@ -35,19 +35,21 @@ summarize_result(): function to convert the output from the model into a datafra
         the resulting prediction, and a threshold of 0.6 probability for known behavior, with every prediction below
         that being labeled as unknown
 """
-import pandas as pd
+
 import os
+
+import pandas as pd
 import numpy as np
+
+from sklearn.base import BaseEstimator
+from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import GridSearchCV
-
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 
 from . import variables_simplefunctions as sim_func
 
-from sklearn.base import BaseEstimator
 
-from sklearn.preprocessing import LabelEncoder
 
 
 def splitting_pred(predictions: pd.DataFrame, mapping=None) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -310,6 +312,7 @@ def calc_tables_eva(pred: pd.DataFrame, all_pred_test: pd.DataFrame, all_lab_tes
     Function to create two dataframes. One returns all mislabeled behaviors ordered by cluster,
     the other one ordered by behavior (this one also normalized)
 
+    @param pred: dataframe containing all predictor data
     @param all_pred_test: predicted labels
     @param all_lab_test: true labels
     @param classes:

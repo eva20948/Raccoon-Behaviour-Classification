@@ -37,44 +37,41 @@ plotting_vps(): plotting violinplots of different predictors sorted by the recor
 sankey_diagram(): plots sankey diagram
 """
 
-from . import variables_simplefunctions as sim_func
-from . import machine_learning_functions as mlf
 
-from sklearn.metrics import silhouette_score
+from datetime import datetime
+import calendar
+import locale
+
+import pandas as pd
+import numpy as np
+
 import matplotlib.patches as mpatches
+from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+from matplotlib.backends.backend_pdf import PdfPages
+
+import plotly.graph_objects as go
+
+import seaborn as sns
 
 from scipy import stats
 from scipy.stats import chisquare, entropy
+
 from sklearn.decomposition import PCA
 from sklearn.metrics import classification_report
-
-import pandas as pd
+from sklearn.metrics import silhouette_score
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.metrics import ConfusionMatrixDisplay
-
 from sklearn.preprocessing import normalize, StandardScaler
-
-from matplotlib.colors import LinearSegmentedColormap
-import matplotlib.pyplot as plt
-import numpy as np
 from sklearn.metrics import confusion_matrix
-import seaborn as sns
-
 from sklearn.ensemble import RandomForestClassifier
-
-from matplotlib import gridspec
-from matplotlib.backends.backend_pdf import PdfPages
 
 from astral import LocationInfo
 from astral.sun import sun
 
-from datetime import datetime
-
-import calendar
-
-import locale
-
-import plotly.graph_objects as go
+from . import variables_simplefunctions as sim_func
+from . import machine_learning_functions as mlf
 
 
 
@@ -726,6 +723,7 @@ def visualise_predictions_ml(pred: pd.DataFrame, predictors_func: pd.DataFrame, 
     Function to visualize the different predictions of the machine learning algorithms.
 
     @type algorithm: list of algorithm estimator and parameters
+    @param pred: dataframe containing all predictors
     @param predictors_func: the whole dataset of features
     @param labels_all: vector of behavior_generalization and behavior
     @param behaviors_func: all behaviors
@@ -735,6 +733,7 @@ def visualise_predictions_ml(pred: pd.DataFrame, predictors_func: pd.DataFrame, 
     @param sampling_func: list of sampling name and sampling method
     @param ext_test: list of training indeces and test indeces for external validation
     @param opt: including parameter optimization or not
+    @param pdf: pdfPages instance if it should be used
     """
 
     class_order = list(sim_func.MAPPING.keys())

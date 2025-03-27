@@ -206,6 +206,7 @@ MAPPING_INT = {'exploring': 0, 'climbing': 1, 'walking': 2}
 MAPPING_INT_INVERSE = {v: k for k, v in MAPPING_INT.items()}
 
 GENERAL_FREQ = 33.3
+SAMPLE_LENGTH_AT_GEN_FREQ = 54
 
 
 def combine_date_time(df: pd.DataFrame) -> pd.DataFrame:
