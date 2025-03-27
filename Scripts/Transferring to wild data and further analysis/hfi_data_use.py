@@ -23,12 +23,12 @@ from affine import Affine
 
 
 # where to find th used data
-HFI_PATH = '/home/eva/Schreibtisch/Master/NeuerVersuch'
-HFI_FILE = HFI_PATH+"\ml_hfi_v1_2019.nc"
-HFI_FILE_CROP = HFI_PATH+"\ml_hfi_v1_2019_crop.nc"
+hfi_path = '/home/eva/Schreibtisch/Master/NeuerVersuch'
+hfi_file = hfi_path+"\ml_hfi_v1_2019.nc"
+hfi_file_crop = hfi_path+"\ml_hfi_v1_2019_crop.nc"
 
-POLY_PATH = "C:\git-home\eva-racoon2\Scripts"
-POLY_FILE = POLY_PATH+"\hull_polygons.geojson"
+poly_path = "C:\git-home\eva-racoon2\Scripts"
+poly_file = poly_path+"\hull_polygons.geojson"
 
 
 
@@ -61,8 +61,8 @@ def mask_data( shape, data:np.ndarray, transform:Affine) -> np.ma.MaskedArray:
 
 if __name__ == "__main__":
     # load data
-    hfi = xr.open_dataset(HFI_FILE)
-    with open(POLY_FILE, "r") as poly_file:
+    hfi = xr.open_dataset(hfi_file)
+    with open(poly_file, "r") as poly_file:
         poly_data = json.load(poly_file)
     poly_count = len(poly_data['features'])
     
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     hfi_crop = hfi.sel(indexers={'lat': slice(min_lat, max_lat), 'lon': slice(min_lon, max_lon)}).copy()
     hfi = None      # free mem !
     
-    hfi_crop.to_netcdf(path = HFI_FILE_CROP)
+    hfi_crop.to_netcdf(path = hfi_file_crop)
     
     # hfi_shape = hfi_crop.__xarray_dataarray_variable__.shape
     hfi_trans = transform_from_latlon(hfi_crop.coords['lat'], hfi_crop.coords['lon'])
